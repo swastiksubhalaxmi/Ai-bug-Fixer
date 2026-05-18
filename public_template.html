@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BugFix AI — Intelligent Code Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#06080f;--s1:#0b0f1c;--s2:#101525;--s3:#161e30;--s4:#1c2640;
+  --c1:#5b8eff;--c2:#a78bfa;--c3:#38bdf8;
+  --red:#ff4d6d;--amber:#fbbf24;--green:#34d399;
+  --t1:#f0f4ff;--t2:#94a3b8;--t3:#4b5675;--t4:#2a3352;
+  --bd:#1a2338;--bd2:#253044;--r:12px;--r2:8px;
+}
+body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+.app-shell{display:flex;flex-direction:column;min-height:100vh;position:relative}
+.grain{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.04;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E")}
+.glow-top{position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:900px;height:400px;background:radial-gradient(ellipse,rgba(91,142,255,0.07) 0%,transparent 70%);pointer-events:none;z-index:0}
+.glow-left{position:fixed;bottom:0;left:-100px;width:500px;height:500px;background:radial-gradient(ellipse,rgba(167,139,250,0.05) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+nav{position:sticky;top:0;z-index:100;background:rgba(6,8,15,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);padding:0 2rem;height:60px;display:flex;align-items:center;justify-content:space-between}
+.nav-left{display:flex;align-items:center;gap:14px}
+.wordmark{display:flex;align-items:center;gap:10px}
+.wm-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--c1),var(--c2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#fff;letter-spacing:-1px}
+.wm-text{font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;letter-spacing:-0.5px;color:var(--t1)}
+.wm-text em{font-style:normal;background:linear-gradient(90deg,var(--c1),var(--c2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-pill{background:rgba(91,142,255,0.08);border:1px solid rgba(91,142,255,0.2);color:var(--c1);font-size:10px;font-weight:600;letter-spacing:1px;padding:3px 9px;border-radius:20px}
+.nav-right{display:flex;align-items:center;gap:16px}
+.ai-status{display:flex;align-items:center;gap:7px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);padding:5px 12px;border-radius:20px}
+.pulse-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:breathe 2.5s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+.ai-lbl{font-size:11px;color:var(--green);font-weight:500}
+.model-chip{font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace}
+
+.workspace{flex:1;display:grid;grid-template-columns:1fr 1fr;position:relative;z-index:1}
+.divider{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--bd);z-index:10}
+.pane{display:flex;flex-direction:column;overflow:hidden}
+.pane-top{padding:14px 20px;border-bottom:1px solid var(--bd);background:var(--s1);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pane-label{font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--t3);display:flex;align-items:center;gap:8px;text-transform:uppercase}
+.pane-label-dot{width:6px;height:6px;border-radius:50%}
+.dot-blue{background:var(--c1)}.dot-purple{background:var(--c2)}
+.toolbar{display:flex;align-items:center;gap:8px}
+.tb-btn{background:var(--s3);border:1px solid var(--bd2);color:var(--t2);font-size:11px;font-weight:500;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;display:flex;align-items:center;gap:6px}
+.tb-btn:hover{background:var(--s4);color:var(--t1);border-color:var(--bd2)}
+.lang-sel{background:var(--s3);border:1px solid var(--bd2);color:var(--t2);font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;outline:none}
+.samples-strip{padding:10px 20px;border-bottom:1px solid var(--bd);background:var(--s1);display:flex;align-items:center;gap:8px;overflow-x:auto}
+.samples-strip::-webkit-scrollbar{display:none}
+.strip-label{font-size:10px;color:var(--t3);white-space:nowrap;letter-spacing:0.5px;font-weight:500}
+.chip{background:transparent;border:1px solid var(--bd2);color:var(--t3);font-size:11px;padding:4px 12px;border-radius:20px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.chip:hover{background:rgba(91,142,255,0.08);border-color:rgba(91,142,255,0.3);color:var(--c1)}
+.chip.active{background:rgba(91,142,255,0.1);border-color:rgba(91,142,255,0.4);color:var(--c1)}
+.chip-dot{width:5px;height:5px;border-radius:50%}
+.editor-zone{flex:1;display:flex;flex-direction:column;background:var(--bg);position:relative;min-height:0}
+.code-area-wrap{display:flex;flex:1;overflow:hidden;position:relative}
+.line-col{width:44px;background:var(--s1);border-right:1px solid var(--bd);padding:20px 10px 20px 0;display:flex;flex-direction:column;align-items:flex-end;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--t4);line-height:1.8;user-select:none;overflow:hidden}
+textarea{flex:1;background:transparent;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.8;color:var(--t1);padding:20px 16px 20px 16px;resize:none;tab-size:2;letter-spacing:0.3px}
+textarea::placeholder{color:var(--t4)}
+textarea::selection{background:rgba(91,142,255,0.18)}
+.run-zone{padding:12px 20px;border-top:1px solid var(--bd);background:var(--s1);display:flex;align-items:center;gap:12px}
+.run-btn{background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;border:none;font-size:13px;font-weight:600;font-family:'Outfit',sans-serif;padding:9px 22px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;letter-spacing:0.3px}
+.run-btn:hover{opacity:0.88;transform:translateY(-1px)}
+.run-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+.kbd{background:var(--s3);border:1px solid var(--bd2);color:var(--t3);font-size:10px;padding:2px 7px;border-radius:4px;font-family:'JetBrains Mono',monospace}
+.meta-info{margin-left:auto;display:flex;align-items:center;gap:12px}
+.meta-txt{font-size:11px;color:var(--t4);font-family:'JetBrains Mono',monospace}
+.output-zone{flex:1;overflow-y:auto;padding:20px;min-height:0}
+.output-zone::-webkit-scrollbar{width:3px}
+.output-zone::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
+.empty-view{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:2rem}
+.empty-glyph{width:64px;height:64px;background:var(--s3);border:1px solid var(--bd2);border-radius:16px;display:flex;align-items:center;justify-content:center}
+.empty-glyph svg{width:28px;height:28px;color:var(--t4)}
+.empty-h{font-family:'Outfit',sans-serif;font-size:16px;font-weight:600;color:var(--t2)}
+.empty-p{font-size:12px;color:var(--t3);text-align:center;line-height:1.6;max-width:220px}
+.loading-view{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:24px}
+.loading-view.on{display:flex}
+.loader-ring{width:52px;height:52px;position:relative}
+.loader-ring::before,.loader-ring::after{content:'';position:absolute;border-radius:50%}
+.loader-ring::before{inset:0;border:2px solid var(--bd2)}
+.loader-ring::after{inset:0;border:2px solid transparent;border-top-color:var(--c1);animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-steps{display:flex;flex-direction:column;gap:10px}
+.lstep{font-size:12px;color:var(--t4);display:flex;align-items:center;gap:10px;transition:all 0.3s}
+.lstep.cur{color:var(--c1)}.lstep.done{color:var(--green)}
+.lstep-ic{width:18px;height:18px;border-radius:50%;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.results-view{display:none}
+.results-view.on{display:block}
+.scoreboard{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:16px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center}
+.score-summary{font-size:13px;color:var(--t2);line-height:1.6}
+.score-ring-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.score-num{font-family:'Outfit',sans-serif;font-size:32px;font-weight:800;line-height:1}
+.score-lbl{font-size:10px;color:var(--t3);font-weight:500;letter-spacing:0.5px}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.stat-c{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2);padding:12px;text-align:center}
+.stat-n{font-family:'Outfit',sans-serif;font-size:24px;font-weight:700;line-height:1.1}
+.stat-l{font-size:10px;color:var(--t3);margin-top:3px;letter-spacing:0.5px;font-weight:500}
+.n-red{color:var(--red)}.n-amber{color:var(--amber)}.n-blue{color:var(--c3)}
+.bug-card{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.bug-header{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.sev-tag{font-size:10px;font-weight:700;letter-spacing:0.8px;padding:3px 10px;border-radius:20px;text-transform:uppercase}
+.sev-crit{background:rgba(255,77,109,0.12);color:var(--red);border:1px solid rgba(255,77,109,0.25)}
+.sev-warn{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.2)}
+.sev-info{background:rgba(56,189,248,0.08);color:var(--c3);border:1px solid rgba(56,189,248,0.2)}
+.bug-title-txt{font-size:13px;font-weight:500;color:var(--t1);flex:1}
+.bug-ln{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t4);background:var(--s3);padding:2px 8px;border-radius:4px}
+.bug-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.section-lbl{font-size:10px;font-weight:600;color:var(--t4);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.section-txt{font-size:12px;color:var(--t2);line-height:1.65}
+.codeblock{background:var(--bg);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.cb-top{padding:8px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.cb-lang{font-size:10px;color:var(--t4);font-family:'JetBrains Mono',monospace}
+.cb-copy{background:transparent;border:1px solid var(--bd2);color:var(--t3);font-size:10px;padding:3px 9px;border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s}
+.cb-copy:hover{background:var(--s3);color:var(--t1)}
+pre{padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.75;color:#a8b4d0;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto}
+pre::-webkit-scrollbar{width:3px;height:3px}
+pre::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
+.full-fix-card{background:var(--s2);border:1px solid rgba(52,211,153,0.25);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.ffc-head{padding:12px 16px;border-bottom:1px solid rgba(52,211,153,0.15);background:rgba(52,211,153,0.04);display:flex;align-items:center;justify-content:space-between}
+.ffc-title{font-size:12px;font-weight:600;color:var(--green);display:flex;align-items:center;gap:8px}
+.export-row{display:flex;gap:8px;padding-top:4px;padding-bottom:8px}
+.exp-btn{flex:1;background:var(--s3);border:1px solid var(--bd2);color:var(--t2);font-size:11px;font-weight:500;padding:9px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;text-align:center}
+.exp-btn:hover{background:var(--s4);color:var(--t1);border-color:var(--c1)}
+.no-bugs-card{background:var(--s2);border:1px solid rgba(52,211,153,0.3);border-radius:var(--r);padding:24px;text-align:center;margin-bottom:12px}
+.nb-icon{font-size:36px;margin-bottom:12px}
+.nb-h{font-family:'Outfit',sans-serif;font-size:16px;font-weight:600;color:var(--green);margin-bottom:6px}
+.nb-p{font-size:12px;color:var(--t3)}
+@media(max-width:768px){.workspace{grid-template-columns:1fr}.divider{display:none}}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<div class="grain"></div>
+<div class="glow-top"></div>
+<div class="glow-left"></div>
+
+<nav>
+  <div class="nav-left">
+    <div class="wordmark">
+      <div class="wm-icon">{ }</div>
+      <div class="wm-text">Bug<em>Fix</em> AI</div>
+    </div>
+    <div class="nav-pill">AI POWERED</div>
+  </div>
+  <div class="nav-right">
+    <span class="model-chip">claude-sonnet</span>
+    <div class="ai-status">
+      <div class="pulse-dot"></div>
+      <span class="ai-lbl">Model active</span>
+    </div>
+  </div>
+</nav>
+
+<div class="workspace">
+  <div class="divider"></div>
+
+  <div class="pane" style="border-right:1px solid var(--bd)">
+    <div class="pane-top">
+      <div class="pane-label">
+        <div class="pane-label-dot dot-blue"></div>
+        Source Code
+      </div>
+      <div class="toolbar">
+        <select class="lang-sel" id="langSel">
+          <option value="java">Java</option>
+          <option value="python">Python</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="cpp">C++</option>
+          <option value="c">C</option>
+          <option value="go">Go</option>
+          <option value="rust">Rust</option>
+        </select>
+        <button class="tb-btn" onclick="clearAll()">Clear</button>
+      </div>
+    </div>
+
+    <div class="samples-strip">
+      <span class="strip-label">Try:</span>
+      <div class="chip" onclick="loadS('null',this)"><div class="chip-dot" style="background:var(--red)"></div>NullPointer</div>
+      <div class="chip" onclick="loadS('array',this)"><div class="chip-dot" style="background:var(--amber)"></div>Array OOB</div>
+      <div class="chip" onclick="loadS('loop',this)"><div class="chip-dot" style="background:var(--amber)"></div>Infinite Loop</div>
+      <div class="chip" onclick="loadS('logic',this)"><div class="chip-dot" style="background:var(--red)"></div>Logic Error</div>
+      <div class="chip" onclick="loadS('memory',this)"><div class="chip-dot" style="background:var(--c3)"></div>Memory Leak</div>
+    </div>
+
+    <div class="editor-zone">
+      <div class="code-area-wrap">
+        <div class="line-col" id="lineNums">1</div>
+        <textarea id="ed" spellcheck="false" placeholder="// Paste your buggy code here&#10;// or pick an example above&#10;&#10;public class Main {&#10;    public static void main(String[] args) {&#10;        // your code&#10;    }&#10;}"></textarea>
+      </div>
+    </div>
+
+    <div class="run-zone">
+      <button class="run-btn" id="runBtn" onclick="doAnalyze()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Run Analysis
+      </button>
+      <span class="kbd">↵</span>
+      <div class="meta-info">
+        <span class="meta-txt" id="lineCount">0 lines</span>
+        <span class="meta-txt" id="charCount">0 chars</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane">
+    <div class="pane-top">
+      <div class="pane-label">
+        <div class="pane-label-dot dot-purple"></div>
+        AI Diagnostics
+      </div>
+      <div class="toolbar" id="exportToolbar" style="display:none">
+        <button class="tb-btn" onclick="doExport()">Export Report</button>
+      </div>
+    </div>
+
+    <div class="output-zone" id="outZone">
+      <div class="empty-view" id="emptyV">
+        <div class="empty-glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v3M11 14h.01"/></svg>
+        </div>
+        <div class="empty-h">No analysis yet</div>
+        <div class="empty-p">Paste your code and click Run Analysis to detect bugs with AI</div>
+      </div>
+
+      <div class="loading-view" id="loadV">
+        <div class="loader-ring"></div>
+        <div class="loader-steps">
+          <div class="lstep cur" id="ls1"><div class="lstep-ic">1</div>Parsing syntax tree</div>
+          <div class="lstep" id="ls2"><div class="lstep-ic">2</div>Running static analysis</div>
+          <div class="lstep" id="ls3"><div class="lstep-ic">3</div>Identifying bug patterns</div>
+          <div class="lstep" id="ls4"><div class="lstep-ic">4</div>Generating fixes</div>
+        </div>
+      </div>
+
+      <div class="results-view" id="resV"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const ANTHROPIC_API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your key
+
+const samples = {
+  null: `public class UserService {
+    private String username;
+
+    public void processUser(String name) {
+        // Bug: No null check before method call
+        if (name.length() > 0) {
+            this.username = name.toUpperCase();
+            System.out.println("User: " + username.trim());
+        }
+    }
+
+    public static void main(String[] args) {
+        UserService svc = new UserService();
+        svc.processUser(null); // NullPointerException!
+    }
+}`,
+  array: `public class ScoreProcessor {
+    public static double average(int[] scores) {
+        int total = 0;
+        // Bug: <= causes ArrayIndexOutOfBoundsException
+        for (int i = 0; i <= scores.length; i++) {
+            total += scores[i];
+        }
+        return total / scores.length; // integer division bug
+    }
+
+    public static void main(String[] args) {
+        int[] marks = {85, 92, 78, 95, 88};
+        System.out.println("Average: " + average(marks));
+    }
+}`,
+  loop: `public class Counter {
+    public static void countdown(int n) {
+        // Bug: odd numbers never decrement - infinite loop
+        while (n != 0) {
+            System.out.println(n);
+            if (n % 2 == 0) n--;
+        }
+        System.out.println("Done!");
+    }
+
+    public static void main(String[] args) {
+        countdown(5); // hangs forever at 5, 3, 1
+    }
+}`,
+  logic: `public class BankAccount {
+    private double balance = 1000.0;
+
+    public boolean withdraw(double amount) {
+        // Bug: || should be && - allows overdrafts
+        if (amount > 0 || amount <= balance) {
+            balance -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    public void deposit(double amount) {
+        // Bug: int cast loses decimal precision
+        balance += (int)(amount * 0.95);
+    }
+
+    public static void main(String[] args) {
+        BankAccount acc = new BankAccount();
+        acc.withdraw(9999); // should fail, doesn't!
+        System.out.println("Balance: " + acc.balance);
+    }
+}`,
+  memory: `import java.util.*;
+
+public class DataProcessor {
+    static List<byte[]> cache = new ArrayList<>();
+
+    // Bug: cache grows forever, never evicted
+    public static void process(String input) {
+        byte[] data = new byte[1024 * 1024]; // 1MB
+        cache.add(data); // never removed = memory leak
+    }
+
+    public static void handle(String req) {
+        // Bug: Scanner not closed (resource leak)
+        Scanner sc = new Scanner(System.in);
+        String line = sc.nextLine();
+        process(line);
+        // sc.close() missing!
+    }
+}`
+};
+
+const ed = document.getElementById('ed');
+const lineNums = document.getElementById('lineNums');
+
+function updateMeta() {
+  const v = ed.value;
+  document.getElementById('charCount').textContent = v.length + ' chars';
+  const lines = v ? v.split('\n').length : 0;
+  document.getElementById('lineCount').textContent = lines + ' lines';
+  lineNums.textContent = Array.from({length: Math.max(lines,1)}, (_,i) => i+1).join('\n');
+}
+ed.addEventListener('input', updateMeta);
+ed.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = ed.selectionStart;
+    ed.value = ed.value.substring(0, s) + '  ' + ed.value.substring(ed.selectionEnd);
+    ed.selectionStart = ed.selectionEnd = s + 2;
+    updateMeta();
+  }
+});
+ed.addEventListener('scroll', () => { lineNums.scrollTop = ed.scrollTop; });
+updateMeta();
+
+function clearAll() {
+  ed.value = '';
+  updateMeta();
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  showEmpty();
+}
+
+function loadS(k, el) {
+  ed.value = samples[k];
+  updateMeta();
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  showEmpty();
+}
+
+function showEmpty() {
+  document.getElementById('emptyV').style.display = 'flex';
+  document.getElementById('loadV').classList.remove('on');
+  document.getElementById('resV').classList.remove('on');
+  document.getElementById('exportToolbar').style.display = 'none';
+}
+
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('ls' + i);
+    if (i < n) { el.className = 'lstep done'; el.querySelector('.lstep-ic').textContent = '✓'; }
+    else if (i === n) { el.className = 'lstep cur'; el.querySelector('.lstep-ic').textContent = i; }
+    else { el.className = 'lstep'; el.querySelector('.lstep-ic').textContent = i; }
+  }
+}
+
+let lastData = null;
+
+async function doAnalyze() {
+  const code = ed.value.trim();
+  if (!code) { ed.focus(); return; }
+  const lang = document.getElementById('langSel').value;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  document.getElementById('emptyV').style.display = 'none';
+  document.getElementById('loadV').classList.add('on');
+  document.getElementById('resV').classList.remove('on');
+  document.getElementById('exportToolbar').style.display = 'none';
+  setStep(1);
+  const timers = [
+    setTimeout(() => setStep(2), 900),
+    setTimeout(() => setStep(3), 1900),
+    setTimeout(() => setStep(4), 3000)
+  ];
+
+  try {
+    const prompt = `You are an elite ${lang} code security and quality engineer. Analyze the code below.
+
+Return ONLY a raw JSON object (no markdown, no backticks):
+{
+  "summary": "One precise sentence describing the code and its primary issue",
+  "bugs": [
+    {
+      "id": 1,
+      "severity": "critical|warning|info",
+      "title": "Concise bug name",
+      "line": "e.g. 12 or 12-15 or N/A",
+      "description": "Clear technical explanation of the bug",
+      "fix_explanation": "Specific steps to fix it",
+      "fixed_code": "Corrected snippet for this bug only"
+    }
+  ],
+  "full_fixed_code": "Complete corrected version of the entire program",
+  "score": 42,
+  "score_label": "Needs Work"
+}
+
+Severity: critical=crash/security/data-loss, warning=logic error/bad practice, info=style/optimization.
+Score 0-100: 0-40=Needs Work, 41-70=Fair, 71-90=Good, 91-100=Excellent.
+Find ALL bugs. Be precise with line numbers.
+
+Code:
+\`\`\`${lang}
+${code}
+\`\`\``;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    timers.forEach(clearTimeout);
+    const data = await res.json();
+    let raw = data.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const result = JSON.parse(raw);
+    lastData = { result, lang, code };
+    renderResults(result, lang);
+  } catch (e) {
+    timers.forEach(clearTimeout);
+    document.getElementById('loadV').classList.remove('on');
+    document.getElementById('resV').classList.add('on');
+    document.getElementById('resV').innerHTML = `<div style="padding:2rem;text-align:center"><div style="font-size:13px;color:var(--red)">Analysis failed: ${e.message}</div></div>`;
+  }
+  btn.disabled = false;
+}
+
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+function sevClass(s) { return s==='critical'?'sev-crit':s==='warning'?'sev-warn':'sev-info'; }
+function sevLabel(s) { return s==='critical'?'Critical':s==='warning'?'Warning':'Info'; }
+function scoreColor(n) { return n>=71?'var(--green)':n>=41?'var(--amber)':'var(--red)'; }
+
+function copyPre(id, btn) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent)
+    .then(() => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1500); });
+}
+
+function renderResults(r, lang) {
+  document.getElementById('loadV').classList.remove('on');
+  const v = document.getElementById('resV');
+  v.classList.add('on');
+  document.getElementById('exportToolbar').style.display = 'flex';
+
+  const bugs = r.bugs || [];
+  const crit = bugs.filter(b => b.severity === 'critical').length;
+  const warn = bugs.filter(b => b.severity === 'warning').length;
+  const info = bugs.filter(b => b.severity === 'info').length;
+
+  let h = `
+    <div class="scoreboard">
+      <div>
+        <div style="font-size:10px;color:var(--t3);letter-spacing:0.5px;font-weight:500;margin-bottom:6px;text-transform:uppercase">Overview</div>
+        <div class="score-summary">${r.summary || 'Analysis complete.'}</div>
+      </div>
+      <div class="score-ring-wrap">
+        <div class="score-num" style="color:${scoreColor(r.score)}">${r.score}</div>
+        <div class="score-lbl">${r.score_label || 'Score'}</div>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-c"><div class="stat-n n-red">${crit}</div><div class="stat-l">Critical</div></div>
+      <div class="stat-c"><div class="stat-n n-amber">${warn}</div><div class="stat-l">Warnings</div></div>
+      <div class="stat-c"><div class="stat-n n-blue">${info}</div><div class="stat-l">Info</div></div>
+    </div>`;
+
+  if (bugs.length === 0) {
+    h += `<div class="no-bugs-card"><div class="nb-icon">✓</div><div class="nb-h">No bugs found</div><div class="nb-p">Your code looks clean.</div></div>`;
+  } else {
+    bugs.forEach((bug, i) => {
+      const pid = 'pre_' + i;
+      h += `
+        <div class="bug-card">
+          <div class="bug-header">
+            <span class="sev-tag ${sevClass(bug.severity)}">${sevLabel(bug.severity)}</span>
+            <span class="bug-title-txt">${bug.title}</span>
+            ${bug.line && bug.line !== 'N/A' ? `<span class="bug-ln">L${bug.line}</span>` : ''}
+          </div>
+          <div class="bug-body">
+            <div><div class="section-lbl">Problem</div><div class="section-txt">${bug.description}</div></div>
+            <div><div class="section-lbl">Fix</div><div class="section-txt">${bug.fix_explanation}</div></div>
+            <div>
+              <div class="section-lbl">Corrected snippet</div>
+              <div class="codeblock">
+                <div class="cb-top">
+                  <span class="cb-lang">${lang}</span>
+                  <button class="cb-copy" onclick="copyPre('${pid}',this)">Copy</button>
+                </div>
+                <pre id="${pid}">${esc(bug.fixed_code)}</pre>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  if (r.full_fixed_code) {
+    h += `
+      <div class="full-fix-card">
+        <div class="ffc-head">
+          <div class="ffc-title">✓ Full fixed code</div>
+          <button class="cb-copy" onclick="copyPre('fullpre',this)">Copy all</button>
+        </div>
+        <div class="codeblock" style="border:none;border-radius:0">
+          <pre id="fullpre" style="max-height:280px">${esc(r.full_fixed_code)}</pre>
+        </div>
+      </div>`;
+  }
+
+  h += `<div class="export-row">
+    <button class="exp-btn" onclick="doExport()">Download Report (.txt)</button>
+    <button class="exp-btn" onclick="doExportJson()">Download JSON</button>
+  </div>`;
+
+  v.innerHTML = h;
+}
+
+function doExport() {
+  if (!lastData) return;
+  const { result, lang } = lastData;
+  let s = `BUGFIX AI — ANALYSIS REPORT\n${'='.repeat(45)}\n\nLanguage: ${lang}\nScore: ${result.score}/100 (${result.score_label})\nBugs: ${(result.bugs||[]).length}\n\nSummary:\n${result.summary}\n\n${'-'.repeat(45)}\n\n`;
+  (result.bugs||[]).forEach((b,i) => {
+    s += `[${i+1}] ${b.title} — ${b.severity.toUpperCase()}\nLine: ${b.line}\nProblem: ${b.description}\nFix: ${b.fix_explanation}\n\nSnippet:\n${b.fixed_code}\n\n${'-'.repeat(45)}\n\n`;
+  });
+  s += `FULL FIXED CODE:\n\n${result.full_fixed_code}`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([s], {type:'text/plain'}));
+  a.download = 'bugfix-report.txt';
+  a.click();
+}
+
+function doExportJson() {
+  if (!lastData) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(lastData.result, null, 2)], {type:'application/json'}));
+  a.download = 'bugfix-analysis.json';
+  a.click();
+}
+</script>
+</body>
+</html>
