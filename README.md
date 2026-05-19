@@ -1,7 +1,7 @@
 # BugFix AI 🐛
 
 > AI-powered code bug analyzer built with Node.js + Express + Anthropic Claude API.  
-> Full-stack project for Java internship submission (Cisco / campus placements).
+> Full-stack project for Java internship submission (campus placements).
 
 ---
 
